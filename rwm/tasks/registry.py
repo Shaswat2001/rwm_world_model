@@ -1,10 +1,7 @@
-from tasks.locomotion import WalkTask, RunTask
-from tasks.soccer import SoccerTask
+from rwm.tasks.locomotion import WalkTask
 
 TASK_REGISTRY = {
     "locomotion.walk": WalkTask,
-    "locomotion.run": RunTask,
-    "soccer.play": SoccerTask,
 }
 
 

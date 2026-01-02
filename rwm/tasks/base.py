@@ -1,0 +1,27 @@
+from abc import ABC, abstractmethod
+
+
+class BaseTask(ABC):
+    """
+    Backend-agnostic task interface.
+    State can be:
+      - mujoco.MjData (MuJoCo)
+      - mjx.State     (MJX)
+    """
+
+    @abstractmethod
+    def get_observation(self, state):
+        pass
+
+    @abstractmethod
+    def compute_reward(self, state):
+        pass
+
+    @abstractmethod
+    def is_done(self, state) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def observation_space(self):
+        pass

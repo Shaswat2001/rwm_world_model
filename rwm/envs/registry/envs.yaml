@@ -1,0 +1,6 @@
+T1Walk-v0:
+  robot: booster_t1
+  task: locomotion.walk
+  backend: mujoco
+  entrypoint: rwm.envs.mujoco.mujoco_env:BaseMujocoEnv
+  max_episode_steps: 1000

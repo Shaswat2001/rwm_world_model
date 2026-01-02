@@ -2,7 +2,6 @@ import yaml
 import importlib
 from pathlib import Path
 
-
 def _load_entrypoint(path: str):
     module, attr = path.split(":")
     return getattr(importlib.import_module(module), attr)
@@ -21,10 +20,7 @@ def make_env(env_id: str, **override_kwargs):
     ]}
     kwargs.update(override_kwargs)
 
-    env = entrypoint(robot_name= cfg["robot"],
-                     task= cfg["task"],
-                     task_kwargs = None
-                     **kwargs)
+    env = entrypoint(**kwargs)
 
     if cfg["backend"] == "mujoco" and "max_episode_steps" in cfg:
         import gymnasium as gym
