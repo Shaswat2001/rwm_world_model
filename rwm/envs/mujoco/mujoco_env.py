@@ -1,4 +1,5 @@
 import os
+import mujoco
 import numpy as np
 
 from gymnasium.envs.mujoco import MujocoEnv
@@ -34,6 +35,7 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self, **kwargs)
 
         self.robot_name = robot
+        self.init_keyframe = "home"
 
         self.cache_dir = os.path.expanduser("~/.cache/rwm/assets/robots")
         os.makedirs(self.cache_dir, exist_ok=True)
@@ -55,8 +57,19 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
             **kwargs,
         )
 
+        key_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_KEY, self.init_keyframe
+        )
+        if key_id < 0:
+            raise ValueError(f"Keyframe '{self.init_keyframe}' not found")
+
+        mujoco.mj_resetDataKeyframe(self.model, self.data, key_id)
+        mujoco.mj_forward(self.model, self.data)
+
         self.init_qpos = self.data.qpos.copy()
-        self.init_qvel = self.data.qvel.copy()     
+        self.init_qvel = self.data.qvel.copy()    
+
+        self.task.set_defualt_qpose(self.init_qpos) 
 
         self.reset()     
 
@@ -82,7 +95,7 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        obs, reward, terminated = self.task.step(self.model, self.data, imagination)
+        obs, reward, terminated = self.task.step(self.model, self.data, action, imagination)
 
         return obs, reward, terminated, False, {}
     

@@ -18,7 +18,7 @@ class BaseTask(ABC):
         pass
 
     @abstractmethod
-    def is_done(self, state) -> bool:
+    def is_terminated(self, state) -> bool:
         pass
 
     @property
