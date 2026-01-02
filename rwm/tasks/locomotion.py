@@ -19,6 +19,8 @@ class WalkTask(BaseTask):
         self.min_height = min_height
 
         self._obs_dim = None  # inferred at runtime if needed
+        self.CONTACT_BODY_IDS = None
+        self.last_action
 
     def get_observation(self, model, state):
         """
@@ -32,8 +34,28 @@ class WalkTask(BaseTask):
 
         obs = np.concatenate([sensor_obs, prio_obs])
         self._obs_dim = obs.shape[0]
+
         return obs
     
+    def reset(self, model, state):
+        
+        if self.CONTACT_BODY_IDS is None:
+            self.CONTACT_BODY_IDS = self.get_contact_body_ids(model)
+
+        obs = self.get_observation(model, state)
+        return obs
+    
+    def step(self, model, state):
+
+        if self.CONTACT_BODY_IDS is None:
+            self.CONTACT_BODY_IDS = self.get_contact_body_ids(model)
+        
+        obs = self.get_observation(model, state)
+        reward = self.compute_reward(model, state)
+        done = self.is_done(model, state)
+
+        return obs, reward, done
+
     def quat_rotate_inverse(self, q, v):
         q_w = q[-1]
         q_vec = q[:3]
@@ -65,7 +87,11 @@ class WalkTask(BaseTask):
 
     def get_privileged_info(self, model, state):
 
-        self.get_foot_height(model, state)
+        foot_height = self.get_foot_height(model, state)
+        foot_vel = self.get_foot_vel(model, state)
+        contacts = self.body_contact_mujoco(model, state)
+
+        return np.concatenate([contacts, foot_height, foot_vel])
 
     def get_foot_height(self, model, state):
 
@@ -91,13 +117,48 @@ class WalkTask(BaseTask):
 
         return foot_cvel
 
-    def compute_reward(self, state):
+    def compute_reward(self, model, state):
         forward_vel = state.qvel[0]
         return -abs(forward_vel - self.target_velocity)
 
-    def is_done(self, state) -> bool:
+    def is_done(self, model, state) -> bool:
         height = state.qpos[2]
         return bool(height < self.min_height)
+    
+    def get_contact_body_ids(self, model):
+
+        contact_body_ids = set()
+
+        for geom_id in range(model.ngeom):
+
+            if model.geom_contype[geom_id] !=0 or model.geom_conaffinity[geom_id] != 0:
+                body_id = int(model.geom_bodyid[geom_id])
+
+                if body_id == 0:
+                    continue
+
+                contact_body_ids.add(body_id)
+
+        return sorted(contact_body_ids)
+    
+    def body_contact_mujoco(self, model, state, threshold = 1.0):
+
+        body_force = {bid: np.zeros(3) for bid in self.CONTACT_BODY_IDS}
+        cf = np.zeros(6)
+
+        for i in range(state.ncon):
+            mujoco.mj_contactForce(model, state, i, cf)
+            c = state.contact[i]
+
+            b1 = model.geom_bodyid[c.geom1]
+            b2 = model.geom_bodyid[c.geom2]
+
+            if b1 in body_force:
+                body_force[b1] += cf[:3]
+            if b2 in body_force:
+                body_force[b2] -= cf[:3]
+
+        return np.array([np.linalg.norm(body_force[bid]) > threshold for bid in self.CONTACT_BODY_IDS], dtype=np.float32)
 
     @property
     def observation_space(self):

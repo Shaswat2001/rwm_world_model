@@ -68,9 +68,11 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
         self.set_state(self.data.qpos, self.data.qvel)
 
         self.iteration = 0  # reset iteration count
-        return self.task.get_observation(self.model, self.data)
 
-    def step(self, action):
+        obs = self.task.reset(self.model, self.data)
+        return obs
+
+    def step(self, action, imagination= None):
 
         target = np.clip(action, self.action_space.low, self.action_space.high)
 
@@ -80,9 +82,7 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        obs = self.task.get_observation(self.model, self.data)
-        reward = self.task.compute_reward(self.data)
-        terminated = self.task.is_done(self.data)
+        obs, reward, terminated = self.task.step(self.model, self.data, imagination)
 
         return obs, reward, terminated, False, {}
     
