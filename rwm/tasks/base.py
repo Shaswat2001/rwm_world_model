@@ -9,6 +9,17 @@ class BaseTask(ABC):
       - mjx.State     (MJX)
     """
 
+    def reset_buffer(self):
+
+        buffer = {
+            "world_state": [],
+            "policy_state": [],
+            "priv_state": [],
+            "reward": [],
+            "action": [],
+            "done": [],
+        }
+
     @abstractmethod
     def get_observation(self, state):
         pass

@@ -166,8 +166,13 @@ class WalkTask(BaseTask):
         return self._combine_rewards(reward_dict)
     
     def is_terminated(self, model, data) -> bool:
+
+        data_nan = (
+            np.isnan(data.qpos).any() | np.isnan(data.qvel).any()
+        )
+
         height = data.qpos[2]
-        return bool(height < self.min_height)
+        return bool((height < self.min_height) or data_nan)
     
     def _reward_linear_vel_tracking(self, observation, imagination, temperature = 0.25):
         linear_vel= observation["state"]["base_linear_vel"]
@@ -219,6 +224,10 @@ class WalkTask(BaseTask):
 
         devation_reward = np.linalg.norm(observation["state"]["joint_q"] - self.default_qpose, ord=2) ** 2
         return devation_reward
+    
+    def _reward_foot_clearance(self, data, max_foot_height: float = 0.12):
+
+        pass
    
     def _combine_rewards(self, reward_dict):
 

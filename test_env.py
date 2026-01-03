@@ -1,7 +1,7 @@
 import numpy as np
 
 from rwm.envs.registry.make import make_env
-
+from rwm.trainer import EpisodicReplayBuffer
 env = make_env("T1Walk-v0", render_mode="human")
 
 obs, info = env.reset()
