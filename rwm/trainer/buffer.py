@@ -22,7 +22,7 @@ class EpisodicReplayBuffer:
 
     def insert_buffer(self, buffer, input):
 
-        num_inputs = input.shape[0]
+        num_inputs = 1
         end_idx = self.step + num_inputs
 
         if end_idx > self.buffer_size:
@@ -55,29 +55,56 @@ class EpisodicReplayBuffer:
         padding_size = sequence_length - self.transitions
 
         if isinstance(self.buffer, list):
-            return [np.concatenate([np.zeros((padding_size, buffer.shape[-1])), buffer[:self.transitions]], axis=1) if buffer is not None else None for buffer in self.buffer]
+            return [np.concatenate([np.zeros((padding_size, buffer.shape[-1])), buffer[:self.transitions]], axis=0) if buffer is not None else None for buffer in self.buffer]
         else:
-            return np.concatenate([np.zeros((padding_size, self.buffer.shape[-1])), self.buffer[:self.transitions]], axis=1)
+            return np.concatenate([np.zeros((padding_size, self.buffer.shape[-1])), self.buffer[:self.transitions]], axis=0)
 
-    def _generate_valid_indices(self, buffer, sequence_length):
+    def _generate_valid_indices(self, reset_buffer, sequence_length):
 
-        T = len(buffer)
+        T = len(reset_buffer)
 
         if T < sequence_length:
             return np.array([], dtype=np.int64)
 
         # Sliding window view: shape (T - seq_len + 1, seq_len)
-        windows = np.lib.stride_tricks.sliding_window_view(buffer.astype(bool), sequence_length)
+        windows = np.lib.stride_tricks.sliding_window_view(
+            reset_buffer.astype(bool), sequence_length, axis=0
+        )
 
-        valid_mask = ~windows.any(axis=1)
+        # ignore reset at window start
+        valid_mask = ~windows[:, 1:].any(axis=1)
         return np.nonzero(valid_mask)[0]
 
-    def sample(self, sequence_length, batch_size= 64):
-        
-        pad_buffer = self.padding_buffer(sequence_length)
-        indices = self.where_terminate(pad_buffer)
+    def _ordered_buffer(self, buffer):
+        if self.transitions < self.buffer_size:
+            return buffer[:self.transitions]
+        return np.concatenate(
+            [buffer[self.step:], buffer[:self.step]],
+            axis=0
+        )
 
-        if indices is None:
+    def sample(self, sequence_length, batch_size= 64):
+
+        assert isinstance(self.buffer, list), "Reset buffer must be last entry"
+        assert self.buffer[-1].shape[-1] == 1 or self.buffer[-1].ndim == 1, \
+            "Last buffer must be reset flags"
+
+        if sequence_length > self.transitions:
+            pad_buffer = self.padding_buffer(sequence_length)
+        else:
+            pad_buffer = self.buffer
+
+        if isinstance(pad_buffer, list):
+            pad_buffer = [
+                self._ordered_buffer(buf) if buf is not None else None
+                for buf in pad_buffer
+            ]
+        else:
+            pad_buffer = self._ordered_buffer(pad_buffer)
+
+        indices = self._generate_valid_indices(pad_buffer[-1], sequence_length)
+
+        if len(indices) == 0:
             max_start_indices = max(self.transitions - sequence_length, 0) + 1
             sample_starts = np.random.choice(max_start_indices, size=batch_size)
             offsets = np.arange(sequence_length)
