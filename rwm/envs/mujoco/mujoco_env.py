@@ -69,8 +69,10 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
         self.init_qpos = self.data.qpos.copy()
         self.init_qvel = self.data.qvel.copy()    
 
-        self.task.set_defualt_qpose(self.init_qpos) 
+        self.task._set_env_variables(self.model, self.data)
+        self.task._set_default(self.init_qpos[7:]) 
 
+        self.action_space = spaces.Box(low=-1, high=1, shape=self.action_space.shape, dtype=np.float32)
         self.reset()     
 
     def reset_model(self):
@@ -82,7 +84,7 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
 
         self.iteration = 0  # reset iteration count
 
-        obs = self.task.reset(self.model, self.data)
+        obs = self.task.reset()
         return obs
 
     def step(self, action, imagination= None):
@@ -95,7 +97,7 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        obs, reward, terminated = self.task.step(self.model, self.data, action, imagination)
+        obs, reward, terminated = self.task.step(action, imagination)
 
         return obs, reward, terminated, False, {}
     

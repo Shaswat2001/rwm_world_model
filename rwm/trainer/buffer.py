@@ -2,7 +2,7 @@ import numpy as np
 
 class EpisodicReplayBuffer:
 
-    def __init__(self, dim, buffer_size, device= "cpu"):
+    def __init__(self, dim: dict, buffer_size: int, device: str= "cpu"):
         
         self.dim = dim
         self.buffer_size = buffer_size
@@ -59,15 +59,18 @@ class EpisodicReplayBuffer:
         else:
             return np.concatenate([np.zeros((padding_size, self.buffer.shape[-1])), self.buffer[:self.transitions]], axis=1)
 
-    def where_terminate(self, buffer):
+    def _generate_valid_indices(self, buffer, sequence_length):
 
-        indices = None
-        done_buffer = buffer[-1] if isinstance(buffer, list) else None
+        T = len(buffer)
 
-        if done_buffer is not None:
-            (indices, ) = np.nonzero(done_buffer > 0)
+        if T < sequence_length:
+            return np.array([], dtype=np.int64)
 
-        return indices
+        # Sliding window view: shape (T - seq_len + 1, seq_len)
+        windows = np.lib.stride_tricks.sliding_window_view(buffer.astype(bool), sequence_length)
+
+        valid_mask = ~windows.any(axis=1)
+        return np.nonzero(valid_mask)[0]
 
     def sample(self, sequence_length, batch_size= 64):
         
@@ -91,6 +94,3 @@ class EpisodicReplayBuffer:
             return [buf[sampled_starts[:, None] + offsets] if buf is not None else None for buf in pad_buffer]
         else:
             return pad_buffer[sampled_starts[:, None] + offsets]
-
-    
-
