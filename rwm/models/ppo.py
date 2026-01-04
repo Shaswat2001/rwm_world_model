@@ -59,7 +59,7 @@ class PPO:
                 state = torch.FloatTensor(state).to(self.device)
                 action, action_logprob, state_val = self.policy_old.act(state)
 
-            return action.detach().cpu().numpy().flatten()
+            return action.detach().cpu().numpy().flatten(), action_logprob.item(), state_val.item()
         else:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(self.device)
