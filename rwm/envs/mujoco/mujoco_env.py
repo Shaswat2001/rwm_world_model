@@ -91,7 +91,6 @@ class BaseMujocoEnv(MujocoEnv, utils.EzPickle):
 
         target = np.clip(action, self.action_space.low, self.action_space.high)
 
-        # Simulate with the 12-element target vector
         self.do_simulation(target, self.frame_skip)
 
         if self.render_mode == "human":
